@@ -5,6 +5,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
 
+import cpw.mods.fml.relauncher.Side;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.network.NetServerHandler;
@@ -13,9 +14,9 @@ import net.minecraft.network.packet.Packet;
 
 public class ZPCombatMoveAsyncPacketCtoS extends Packet {
 
-	byte eventID;
+	public byte eventID;
 	
-	byte[] packetMetaData;
+	public ZPCombatEvent zpcEvent;
 	
 	public ZPCombatMoveAsyncPacketCtoS() { }
 	
@@ -23,29 +24,21 @@ public class ZPCombatMoveAsyncPacketCtoS extends Packet {
 	{
 		this.eventID = eventToSend.combatEventID;
 		
-		this.packetMetaData = new byte[ZPCombatEvent.getMetaDataSize(this.eventID)];
-		
-		switch (eventToSend.combatEventID)
-		{
-			case ZPCombatEvent.combatEvtID_JumpFront:
-				this.packetMetaData[0] = eventToSend.direction;
-				break;
-		}
+		this.zpcEvent = eventToSend;
 	}
 	
 	@Override
 	public void readPacketData(DataInput datainput) throws IOException {
 		this.eventID = datainput.readByte();
 		
-		this.packetMetaData = new byte[ZPCombatEvent.getMetaDataSize(this.eventID)];
-		datainput.readFully(this.packetMetaData);
+		this.zpcEvent = new ZPCombatEvent(this.eventID, datainput);
 	}
 
 	@Override
 	public void writePacketData(DataOutput dataoutput) throws IOException {
 		dataoutput.writeByte(eventID);
 		
-		dataoutput.write(this.packetMetaData);
+		this.zpcEvent.writeDataToPacket(dataoutput);
 	}
 
 	@Override
@@ -55,7 +48,7 @@ public class ZPCombatMoveAsyncPacketCtoS extends Packet {
 
 	@Override
 	public int getPacketSize() {
-		return 1 + ZPCombatEvent.getMetaDataSize(this.eventID);
+		return 1 + ZPCombatEvent.getDataSize(this.eventID);
 	}
 
 	@Override
@@ -107,6 +100,6 @@ public class ZPCombatMoveAsyncPacketCtoS extends Packet {
 			}
 		}
 		
-		ZPCombatEvent.addCombatEventToList(senderPlayer, packet.eventID, packet.packetMetaData);
+		ZPCombatEvent.addCombatEventToList(senderPlayer, packet.zpcEvent, Side.SERVER);
 	}
 }

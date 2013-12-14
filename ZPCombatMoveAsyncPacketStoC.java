@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import cpw.mods.fml.relauncher.Side;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityClientPlayerMP;
 import net.minecraft.client.multiplayer.NetClientHandler;
@@ -16,10 +17,10 @@ import net.minecraft.network.packet.Packet;
 
 public class ZPCombatMoveAsyncPacketStoC extends Packet {
 	
-	int playerId;
-	byte eventID;
+	public int playerId;
+	public byte eventID;
 	
-	byte[] packetMetaData;
+	public ZPCombatEvent zpcEvent;
 	
 	public ZPCombatMoveAsyncPacketStoC() { }
 	
@@ -29,7 +30,7 @@ public class ZPCombatMoveAsyncPacketStoC extends Packet {
 		this.eventID = sourcePacket.eventID;
 		
 		//Is there a reason to copy the contents instead?
-		this.packetMetaData = sourcePacket.packetMetaData;
+		this.zpcEvent = sourcePacket.zpcEvent;
 	}
 
 	@Override
@@ -37,8 +38,7 @@ public class ZPCombatMoveAsyncPacketStoC extends Packet {
 		this.playerId = datainput.readInt();
 		this.eventID = datainput.readByte();
 		
-		this.packetMetaData = new byte[ZPCombatEvent.getMetaDataSize(this.eventID)];
-		datainput.readFully(this.packetMetaData);
+		this.zpcEvent = new ZPCombatEvent(this.eventID, datainput);
 	}
 
 	@Override
@@ -46,7 +46,7 @@ public class ZPCombatMoveAsyncPacketStoC extends Packet {
 		dataoutput.writeInt(this.playerId);
 		dataoutput.writeByte(this.eventID);
 		
-		dataoutput.write(this.packetMetaData);
+		this.zpcEvent.writeDataToPacket(dataoutput);
 	}
 
 	@Override
@@ -56,7 +56,7 @@ public class ZPCombatMoveAsyncPacketStoC extends Packet {
 
 	@Override
 	public int getPacketSize() {
-		return 5 + ZPCombatEvent.getMetaDataSize(this.eventID);
+		return 5 + ZPCombatEvent.getDataSize(this.eventID);
 	}
 	
 	@Override
@@ -79,7 +79,7 @@ public class ZPCombatMoveAsyncPacketStoC extends Packet {
 		//EntityClientPlayerMP thisPlayer = Minecraft.getMinecraft().thePlayer;
 		EntityPlayer targetPlayer = (EntityPlayer)targetEntity;
 		
-		ZPCombatEvent.addCombatEventToList(targetPlayer, packet.eventID, packet.packetMetaData);
+		ZPCombatEvent.addCombatEventToList(targetPlayer, packet.zpcEvent, Side.CLIENT);
 	}
 
 }

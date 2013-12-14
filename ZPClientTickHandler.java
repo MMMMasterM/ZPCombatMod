@@ -1,48 +1,93 @@
 package ZPCombatMod;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.entity.EntityClientPlayerMP;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
+import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.player.EntityPlayer;
 import cpw.mods.fml.common.ITickHandler;
 import cpw.mods.fml.common.TickType;
+import cpw.mods.fml.common.network.PacketDispatcher;
+import cpw.mods.fml.relauncher.Side;
 
 public class ZPClientTickHandler implements ITickHandler {
 
+	public static boolean thisPlayerWasOnGround = true;
+	public static double thisPlayerOldY;
+	
 	@Override
 	public void tickStart(EnumSet<TickType> type, Object... tickData) {
 		// onPlayerPreTick
 		
-		synchronized(ZPCombat.combatEvents)
+		EntityPlayer curPlayer = ((EntityPlayer)tickData[0]);
+		
+		synchronized(ZPCombat.combatEventsClient)
 		{
-			EntityPlayer curPlayer = ((EntityPlayer)tickData[0]);
-			
-			List<ZPCombatEvent> curCEventList = ZPCombat.combatEvents.get(curPlayer);
+			List<ZPCombatEvent> curCEventList = ZPCombat.combatEventsClient.get(curPlayer);
 			
 			if (curCEventList != null)
 			{
 				for (ZPCombatEvent curCombatEvent : curCEventList)
+					curCombatEvent.applyToPlayer(curPlayer, Side.CLIENT);
+				
+				curCEventList.clear();
+			}
+		}
+		
+		if (curPlayer == Minecraft.getMinecraft().thePlayer)
+		{
+			//Send motion to server
+			PacketDispatcher.sendPacketToServer(new PacketSyncVelUpdateCtoS(curPlayer.motionX, curPlayer.motionY, curPlayer.motionZ).makePacket());
+			
+			thisPlayerWasOnGround = curPlayer.onGround;
+			thisPlayerOldY = curPlayer.boundingBox.minY;
+		}
+		else
+		{
+			EntityOtherPlayerMP curOtherPlayer = (EntityOtherPlayerMP)curPlayer;
+			
+			try 
+			{
+				int otherPlayerMPPosRotationIncrements = ZPCombat.otherPlayerMPPosRotationIncrementsField.getInt(curOtherPlayer);
+				if (otherPlayerMPPosRotationIncrements > 0)
 				{
-					switch (curCombatEvent.combatEventID)
+					double dX = ZPCombat.otherPlayerMPXField.getDouble(curOtherPlayer) - curOtherPlayer.posX;
+					double dY = ZPCombat.otherPlayerMPYField.getDouble(curOtherPlayer) - curOtherPlayer.posY;
+					double dZ = ZPCombat.otherPlayerMPZField.getDouble(curOtherPlayer) - curOtherPlayer.posZ;
+					
+					//dirty workaround
+					boolean isInAir = curOtherPlayer.motionY > -0.05d || curOtherPlayer.motionY < -0.08d;
+					
+					/*if (Math.min(Math.abs(dY), Math.abs(dY + curOtherPlayer.motionY)) < 0.5d && Math.abs(curOtherPlayer.motionY) > 0.08d)// && isInAir)
 					{
-						case ZPCombatEvent.combatEvtID_JumpUp:
-							curPlayer.motionY += 0.5d;
-							//((EntityOtherPlayerMP)curPlayer).
-							break;
-						case ZPCombatEvent.combatEvtID_JumpFront:
-							double rot = ZPCombatEvent.getRotationFromDirection(curCombatEvent.direction);
-							double magX = -Math.sin(rot * Math.PI / 180.0d);
-							double magZ = Math.cos(rot * Math.PI / 180.0d);
-							curPlayer.motionX += magX;
-							curPlayer.motionZ += magZ;
-							break;
+						ZPCombat.otherPlayerMPYField.setDouble(curOtherPlayer, curOtherPlayer.posY);
+					}*/
+					
+					double distSqXZ = dX * dX + dZ * dZ;
+					
+					if (!curOtherPlayer.onGround)///*distSqXZ + */dY * dY <= 5.0d)
+					{
+						//ZPCombat.otherPlayerMPXField.setDouble(curOtherPlayer, curOtherPlayer.posX);
+						ZPCombat.otherPlayerMPYField.setDouble(curOtherPlayer, curOtherPlayer.posY);
+						//ZPCombat.otherPlayerMPZField.setDouble(curOtherPlayer, curOtherPlayer.posZ);
+						//ZPCombat.otherPlayerMPPosRotationIncrementsField.setInt(curOtherPlayer, 0);
+					}
+					else
+					{
+						ZPCombat.otherPlayerMPPosRotationIncrementsField.setInt(curOtherPlayer, 1);
 					}
 				}
 				
-				curCEventList.clear();
+				
+			} catch (IllegalArgumentException e) {
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
+				e.printStackTrace();
 			}
 		}
 	}
@@ -55,12 +100,69 @@ public class ZPClientTickHandler implements ITickHandler {
 		if (curPlayer == Minecraft.getMinecraft().thePlayer)
 		{
 			ZPCombat.thisPlayerWasSprinting = ((EntityPlayer)tickData[0]).isSprinting();
+			
+			if (!thisPlayerWasOnGround && curPlayer.onGround)
+			{
+				//Impact event
+				//synchronized(ZPCombat.combatEventsClient)
+				{
+					EntityClientPlayerMP thisPlayer = (EntityClientPlayerMP)curPlayer;
+					/*List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
+					
+					if (eventList == null)
+					{
+						eventList = new ArrayList<ZPCombatEvent>();
+						
+						ZPCombat.combatEventsClient.put(thisPlayer, eventList);
+					}
+					
+					if (ZPCombat.thisPlayerWasSprinting)
+					{
+						ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpFront);
+						newEvent.direction = ZPCombatEvent.getDirectionFromRotation(thisPlayer.rotationYaw);
+						eventList.add(newEvent);
+						thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+					}
+					else
+					{
+						ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpUp);
+						eventList.add(newEvent);
+						thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+					}*/
+					
+					ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Impact);
+					newEvent.impactX = (float)thisPlayer.posX;
+					newEvent.impactY = (float)thisPlayer.boundingBox.minY;
+					newEvent.impactZ = (float)thisPlayer.posZ;
+					thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+				}
+			}
+			else if (thisPlayerWasOnGround && !curPlayer.onGround)
+			{
+				ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Liftoff);
+				((EntityClientPlayerMP)curPlayer).sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+			}
+			/*else if (thisPlayerWasOnGround && curPlayer.onGround && thisPlayerOldY != curPlayer.boundingBox.minY)
+			{
+				EntityClientPlayerMP thisPlayer = (EntityClientPlayerMP)curPlayer;
+				ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Impact);
+				newEvent.impactX = (float)thisPlayer.posX;
+				newEvent.impactY = (float)thisPlayer.boundingBox.minY;
+				newEvent.impactZ = (float)thisPlayer.posZ;
+				thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));*/
+				/*
+				ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Step);
+				newEvent.impactY = (float)curPlayer.boundingBox.minY;
+				((EntityClientPlayerMP)curPlayer).sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));*/
+			//}
 		}
 		else
 		{
 			boolean oldNoClip = curPlayer.noClip;
 			curPlayer.noClip = false;
+			//double oldMotionY = curPlayer.motionY;
 			curPlayer.moveEntityWithHeading(0, 0);
+			//curPlayer.motionY = oldMotionY;
 			curPlayer.noClip = oldNoClip;
 		}
 	}

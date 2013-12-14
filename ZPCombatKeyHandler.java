@@ -9,6 +9,7 @@ import org.lwjgl.input.Keyboard;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityClientPlayerMP;
 import net.minecraft.client.multiplayer.NetClientHandler;
+import net.minecraft.client.settings.GameSettings;
 import net.minecraft.client.settings.KeyBinding;
 import cpw.mods.fml.client.registry.KeyBindingRegistry.KeyHandler;
 import cpw.mods.fml.common.TickType;
@@ -28,18 +29,32 @@ public class ZPCombatKeyHandler extends KeyHandler {
 	public void keyDown(EnumSet<TickType> types, KeyBinding kb,
 			boolean tickEnd, boolean isRepeat) {
 		
-		if (kb == Minecraft.getMinecraft().gameSettings.keyBindJump)
+		GameSettings mcGameSettings = Minecraft.getMinecraft().gameSettings;
+		
+		if (kb.keyCode == mcGameSettings.keyBindForward.keyCode)
+			mcGameSettings.keyBindForward.pressed = kb.pressed;
+		else if (kb.keyCode == mcGameSettings.keyBindBack.keyCode)
+			mcGameSettings.keyBindBack.pressed = kb.pressed;
+		else if (kb.keyCode == mcGameSettings.keyBindLeft.keyCode)
+			mcGameSettings.keyBindLeft.pressed = kb.pressed;
+		else if (kb.keyCode == mcGameSettings.keyBindRight.keyCode)
+			mcGameSettings.keyBindRight.pressed = kb.pressed;
+		
+		//if (kb.keyCode == mcGameSettings.keyBindJump.keyCode)
+		//	mcGameSettings.keyBindJump.pressed = kb.pressed;
+		
+		if (kb == ZPCombat.keyBindJumpHijack)
 		{
-			synchronized(ZPCombat.combatEvents)
+			synchronized(ZPCombat.combatEventsClient)
 			{
 				EntityClientPlayerMP thisPlayer = Minecraft.getMinecraft().thePlayer;
-				List<ZPCombatEvent> eventList = ZPCombat.combatEvents.get(thisPlayer);
+				List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
 				
 				if (eventList == null)
 				{
 					eventList = new ArrayList<ZPCombatEvent>();
 					
-					ZPCombat.combatEvents.put(thisPlayer, eventList);
+					ZPCombat.combatEventsClient.put(thisPlayer, eventList);
 				}
 				
 				if (ZPCombat.thisPlayerWasSprinting)
@@ -51,9 +66,12 @@ public class ZPCombatKeyHandler extends KeyHandler {
 				}
 				else
 				{
-					ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpUp);
-					eventList.add(newEvent);
-					thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+					if (thisPlayer.onGround)
+					{
+						ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpUp);
+						eventList.add(newEvent);
+						thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+					}
 				}
 			}
 		}
@@ -65,8 +83,20 @@ public class ZPCombatKeyHandler extends KeyHandler {
 
 	@Override
 	public void keyUp(EnumSet<TickType> types, KeyBinding kb, boolean tickEnd) {
-		// TODO Auto-generated method stub
 		
+		GameSettings mcGameSettings = Minecraft.getMinecraft().gameSettings;
+		
+		if (kb.keyCode == mcGameSettings.keyBindForward.keyCode)
+			mcGameSettings.keyBindForward.pressed = kb.pressed;
+		else if (kb.keyCode == mcGameSettings.keyBindBack.keyCode)
+			mcGameSettings.keyBindBack.pressed = kb.pressed;
+		else if (kb.keyCode == mcGameSettings.keyBindLeft.keyCode)
+			mcGameSettings.keyBindLeft.pressed = kb.pressed;
+		else if (kb.keyCode == mcGameSettings.keyBindRight.keyCode)
+			mcGameSettings.keyBindRight.pressed = kb.pressed;
+		
+		//if (kb.keyCode == mcGameSettings.keyBindJump.keyCode)
+		//	mcGameSettings.keyBindJump.pressed = kb.pressed;
 	}
 
 	@Override
