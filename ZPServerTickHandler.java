@@ -35,10 +35,10 @@ public class ZPServerTickHandler implements ITickHandler {
 		{
 			// onPlayerPreTick
 			
+			EntityPlayer curPlayer = ((EntityPlayer)tickData[0]);
+			
 			synchronized(ZPCombat.combatEventsServer)
 			{
-				EntityPlayer curPlayer = ((EntityPlayer)tickData[0]);
-				
 				List<ZPCombatEvent> curCEventList = ZPCombat.combatEventsServer.get(curPlayer);
 				
 				if (curCEventList != null)
@@ -51,6 +51,12 @@ public class ZPServerTickHandler implements ITickHandler {
 					
 					curCEventList.clear();
 				}
+			}
+			
+			ZPCEntityState entityState = (ZPCEntityState)curPlayer.getExtendedProperties("zpcState");
+			if (entityState != null && entityState.isCruising)
+			{
+				ZPCombatEvent.updateCruising(curPlayer, entityState);
 			}
 		}
 	}

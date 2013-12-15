@@ -59,7 +59,7 @@ public class ZPCombatMoveAsyncPacketCtoS extends Packet {
 	
 	public ZPCombatMoveAsyncPacketStoC copyForRedirection(EntityPlayer senderPlayer)
 	{
-		return new ZPCombatMoveAsyncPacketStoC(senderPlayer.entityId, this);
+		return new ZPCombatMoveAsyncPacketStoC(senderPlayer.entityId, this.zpcEvent);
 	}
 	
 	

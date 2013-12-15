@@ -16,6 +16,7 @@ import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.world.WorldServer;
+import net.minecraftforge.common.MinecraftForge;
 
 import org.lwjgl.input.Keyboard;
 
@@ -24,6 +25,7 @@ import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.Mod.EventHandler;
 import cpw.mods.fml.common.Mod.Instance;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.network.NetworkMod;
 import cpw.mods.fml.common.registry.TickRegistry;
 import cpw.mods.fml.relauncher.Side;
@@ -37,9 +39,16 @@ public class ZPCombat {
 	public static KeyBinding keyBindLeftHijack;
 	public static KeyBinding keyBindRightHijack;
 	public static KeyBinding keyBindJumpHijack;
+	public static KeyBinding keyBindSneakHijack;
 	
 	@Instance("ZPCombat")
 	public static ZPCombat instance;
+	
+	@EventHandler
+	public void preInit(FMLPreInitializationEvent event)
+	{
+		MinecraftForge.EVENT_BUS.register(new EventHookContainer());
+	}
 	
 	@EventHandler
 	public void load(FMLInitializationEvent event)
@@ -58,9 +67,10 @@ public class ZPCombat {
 		keyBindBackHijack = new KeyBinding("BackHijack", mcGameSettings.keyBindBack.keyCode);
 		keyBindLeftHijack = new KeyBinding("LeftHijack", mcGameSettings.keyBindLeft.keyCode);
 		keyBindRightHijack = new KeyBinding("RightHijack", mcGameSettings.keyBindRight.keyCode);
+		keyBindSneakHijack = new KeyBinding("SneakHijack", mcGameSettings.keyBindSneak.keyCode);
 		
 		KeyBinding[] keys = {keyBindForwardHijack, keyBindBackHijack, 
-				keyBindLeftHijack, keyBindRightHijack, keyBindJumpHijack};
+				keyBindLeftHijack, keyBindRightHijack, keyBindJumpHijack, keyBindSneakHijack};
 		
 		boolean[] repeats = new boolean[keys.length];
 		

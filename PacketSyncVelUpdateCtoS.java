@@ -69,6 +69,7 @@ public class PacketSyncVelUpdateCtoS {
 		
 		//Send velocity to other players
 		WorldServer playerWorld = (WorldServer)player.worldObj;
+		player.motionY = this.packetMotionY;
 		playerWorld.getEntityTracker().sendPacketToAllPlayersTrackingEntity(player, new Packet28EntityVelocity(player.entityId, this.packetMotionX, this.packetMotionY, this.packetMotionZ));
 	}
 }

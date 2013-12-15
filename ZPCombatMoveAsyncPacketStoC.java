@@ -24,13 +24,13 @@ public class ZPCombatMoveAsyncPacketStoC extends Packet {
 	
 	public ZPCombatMoveAsyncPacketStoC() { }
 	
-	public ZPCombatMoveAsyncPacketStoC(int playerEntityId, ZPCombatMoveAsyncPacketCtoS sourcePacket)
+	public ZPCombatMoveAsyncPacketStoC(int playerEntityId, ZPCombatEvent event)
 	{
 		this.playerId = playerEntityId;
-		this.eventID = sourcePacket.eventID;
+		this.eventID = event.combatEventID;
 		
 		//Is there a reason to copy the contents instead?
-		this.zpcEvent = sourcePacket.zpcEvent;
+		this.zpcEvent = event;
 	}
 
 	@Override

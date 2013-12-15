@@ -79,7 +79,8 @@ public class ZPClientTickHandler implements ITickHandler {
 					}
 					else
 					{
-						ZPCombat.otherPlayerMPPosRotationIncrementsField.setInt(curOtherPlayer, 1);
+						if (dY != 0.0d)
+							ZPCombat.otherPlayerMPPosRotationIncrementsField.setInt(curOtherPlayer, 1);
 					}
 				}
 				
@@ -89,6 +90,33 @@ public class ZPClientTickHandler implements ITickHandler {
 			} catch (IllegalAccessException e) {
 				e.printStackTrace();
 			}
+		}
+		
+		ZPCEntityState entityState = (ZPCEntityState)curPlayer.getExtendedProperties("zpcState");
+		if (entityState != null && entityState.isCruising)
+		{
+			if (curPlayer == Minecraft.getMinecraft().thePlayer)
+			{
+				synchronized(ZPCombat.combatEventsClient)
+				{
+					List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(curPlayer);
+					
+					if (eventList == null)
+					{
+						eventList = new ArrayList<ZPCombatEvent>();
+						
+						ZPCombat.combatEventsClient.put(curPlayer, eventList);
+					}
+					
+					ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Cruise);
+					newEvent.direction = ZPCombatEvent.getDirectionFromRotation(curPlayer.rotationYaw);
+					newEvent.pitch = ZPCombatEvent.getPitchFromRotation(curPlayer.rotationPitch);
+					eventList.add(newEvent);
+					((EntityClientPlayerMP)curPlayer).sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+				}
+			}
+			
+			ZPCombatEvent.updateCruising(curPlayer, entityState);
 		}
 	}
 

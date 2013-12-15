@@ -39,36 +39,77 @@ public class ZPCombatKeyHandler extends KeyHandler {
 			mcGameSettings.keyBindLeft.pressed = kb.pressed;
 		else if (kb.keyCode == mcGameSettings.keyBindRight.keyCode)
 			mcGameSettings.keyBindRight.pressed = kb.pressed;
+		else if (kb.keyCode == mcGameSettings.keyBindSneak.keyCode)
+			mcGameSettings.keyBindSneak.pressed = kb.pressed;
 		
 		//if (kb.keyCode == mcGameSettings.keyBindJump.keyCode)
 		//	mcGameSettings.keyBindJump.pressed = kb.pressed;
 		
-		if (kb == ZPCombat.keyBindJumpHijack)
+		if (Minecraft.getMinecraft().currentScreen == null)
 		{
-			synchronized(ZPCombat.combatEventsClient)
+			EntityClientPlayerMP thisPlayer = Minecraft.getMinecraft().thePlayer;
+			
+			if (kb == ZPCombat.keyBindJumpHijack)
 			{
-				EntityClientPlayerMP thisPlayer = Minecraft.getMinecraft().thePlayer;
-				List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
-				
-				if (eventList == null)
+				synchronized(ZPCombat.combatEventsClient)
 				{
-					eventList = new ArrayList<ZPCombatEvent>();
+					List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
 					
-					ZPCombat.combatEventsClient.put(thisPlayer, eventList);
-				}
-				
-				if (ZPCombat.thisPlayerWasSprinting)
-				{
-					ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpFront);
-					newEvent.direction = ZPCombatEvent.getDirectionFromRotation(thisPlayer.rotationYaw);
-					eventList.add(newEvent);
-					thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
-				}
-				else
-				{
-					if (thisPlayer.onGround)
+					if (eventList == null)
 					{
-						ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpUp);
+						eventList = new ArrayList<ZPCombatEvent>();
+						
+						ZPCombat.combatEventsClient.put(thisPlayer, eventList);
+					}
+					
+					if (ZPCombat.thisPlayerWasSprinting)
+					{
+						if (thisPlayer.onGround)
+						{
+							ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpFront);
+							newEvent.direction = ZPCombatEvent.getDirectionFromRotation(thisPlayer.rotationYaw);
+							eventList.add(newEvent);
+							thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+						}
+					}
+					else
+					{
+						if (thisPlayer.onGround)
+						{
+							if (ZPCombat.keyBindSneakHijack.pressed)
+							{
+								ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_LowJump);
+								eventList.add(newEvent);
+								thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+							}
+							else
+							{
+								ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpUp);
+								eventList.add(newEvent);
+								thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+							}
+						}
+					}
+				}
+			}
+			else if (kb == ZPCombat.keyBindSneakHijack)
+			{
+				synchronized(ZPCombat.combatEventsClient)
+				{
+					List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
+					
+					if (eventList == null)
+					{
+						eventList = new ArrayList<ZPCombatEvent>();
+						
+						ZPCombat.combatEventsClient.put(thisPlayer, eventList);
+					}
+					
+					if (!thisPlayer.onGround)
+					{
+						ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Cruise);
+						newEvent.direction = ZPCombatEvent.getDirectionFromRotation(thisPlayer.rotationYaw);
+						newEvent.pitch = ZPCombatEvent.getPitchFromRotation(thisPlayer.rotationPitch);
 						eventList.add(newEvent);
 						thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
 					}
@@ -94,9 +135,32 @@ public class ZPCombatKeyHandler extends KeyHandler {
 			mcGameSettings.keyBindLeft.pressed = kb.pressed;
 		else if (kb.keyCode == mcGameSettings.keyBindRight.keyCode)
 			mcGameSettings.keyBindRight.pressed = kb.pressed;
+		else if (kb.keyCode == mcGameSettings.keyBindSneak.keyCode)
+			mcGameSettings.keyBindSneak.pressed = kb.pressed;
 		
 		//if (kb.keyCode == mcGameSettings.keyBindJump.keyCode)
 		//	mcGameSettings.keyBindJump.pressed = kb.pressed;
+		
+		if (kb == ZPCombat.keyBindSneakHijack)
+		{
+			EntityClientPlayerMP thisPlayer = Minecraft.getMinecraft().thePlayer;
+			
+			synchronized(ZPCombat.combatEventsClient)
+			{
+				List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
+				
+				if (eventList == null)
+				{
+					eventList = new ArrayList<ZPCombatEvent>();
+					
+					ZPCombat.combatEventsClient.put(thisPlayer, eventList);
+				}
+				
+				ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_StopCruise);
+				eventList.add(newEvent);
+				thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+			}
+		}
 	}
 
 	@Override
