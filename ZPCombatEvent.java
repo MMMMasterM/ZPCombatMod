@@ -193,6 +193,16 @@ public class ZPCombatEvent {
 		{
 			case combatEvtID_JumpUp:
 				targetPlayer.motionY += 1.2d;//0.27d;
+				
+				if (side.isServer())
+				{
+					float newAmount = targetPlayer.getAbsorptionAmount() - 3.5f;
+					
+					if (newAmount < 0)
+						targetPlayer.removePotionEffect(Potion.field_76444_x.id);
+					else
+						targetPlayer.setAbsorptionAmount(newAmount);
+				}
 				break;
 			case combatEvtID_JumpFront:
 				double rot = ZPCombatEvent.getRotationFromDirection(this.direction);
@@ -202,6 +212,16 @@ public class ZPCombatEvent {
 				targetPlayer.motionX += magX;
 				targetPlayer.motionY += 0.8d;
 				targetPlayer.motionZ += magZ;
+				
+				if (side.isServer())
+				{
+					float newAmount = targetPlayer.getAbsorptionAmount() - 3.5f;
+					
+					if (newAmount < 0)
+						targetPlayer.removePotionEffect(Potion.field_76444_x.id);
+					else
+						targetPlayer.setAbsorptionAmount(newAmount);
+				}
 				break;
 			case combatEvtID_Impact:
 				//Server already tracks this from vanilla code... kindof...
@@ -230,16 +250,6 @@ public class ZPCombatEvent {
 			case combatEvtID_Liftoff:
 				if (side.isClient())
 					targetPlayer.onGround = false;
-				
-				if (side.isServer())
-				{
-					float newAmount = targetPlayer.getAbsorptionAmount() - 3.5f;
-					
-					if (newAmount < 0)
-						targetPlayer.removePotionEffect(Potion.field_76444_x.id);
-					else
-						targetPlayer.setAbsorptionAmount(newAmount);
-				}
 				break;
 			case combatEvtID_LowJump:
 				targetPlayer.motionY += 0.55d;

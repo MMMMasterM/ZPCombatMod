@@ -175,29 +175,32 @@ public class ZPCombatKeyHandler extends KeyHandler {
 		
 		EntityClientPlayerMP thisPlayer = Minecraft.getMinecraft().thePlayer;
 		
-		if (kb == ZPCombat.keyBindSneakHijack)
+		if (thisPlayer != null)
 		{
-			synchronized(ZPCombat.combatEventsClient)
+			if (kb == ZPCombat.keyBindSneakHijack)
 			{
-				List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
-				
-				if (eventList == null)
+				synchronized(ZPCombat.combatEventsClient)
 				{
-					eventList = new ArrayList<ZPCombatEvent>();
+					List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
 					
-					ZPCombat.combatEventsClient.put(thisPlayer, eventList);
+					if (eventList == null)
+					{
+						eventList = new ArrayList<ZPCombatEvent>();
+						
+						ZPCombat.combatEventsClient.put(thisPlayer, eventList);
+					}
+					
+					ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_StopCruise);
+					eventList.add(newEvent);
+					thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
 				}
-				
-				ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_StopCruise);
-				eventList.add(newEvent);
-				thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
 			}
-		}
-		
-		if (thisPlayer.capabilities.allowFlying || thisPlayer.getAbsorptionAmount() == 0.0f)
-		{
-			if (kb.keyCode == mcGameSettings.keyBindJump.keyCode)
-				mcGameSettings.keyBindJump.pressed = kb.pressed;
+			
+			if (thisPlayer.capabilities.allowFlying || thisPlayer.getAbsorptionAmount() == 0.0f)
+			{
+				if (kb.keyCode == mcGameSettings.keyBindJump.keyCode)
+					mcGameSettings.keyBindJump.pressed = kb.pressed;
+			}
 		}
 	}
 
