@@ -11,6 +11,9 @@ import cpw.mods.fml.relauncher.Side;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
@@ -37,6 +40,8 @@ public class ZPCombatEvent {
 	public static final byte combatEvtID_PunchUp = 11;//Punch entity up in the air (from ground)
 	public static final byte combatEvtID_PunchDown = 12;//Punch entity down to the ground (from air)
 	public static final byte combatEvtID_StopCruise = 13;
+	public static final byte combatEvtID_Consume = 14;
+	public static final byte combatEvtID_UpdatePower = 15;
 	
 	
 	public byte combatEventID;
@@ -85,6 +90,18 @@ public class ZPCombatEvent {
 				break;
 			case combatEvtID_StopCruise:
 				break;
+			case combatEvtID_Blink:
+				this.direction = datainput.readByte();
+				this.pitch = datainput.readByte();
+				this.impactX = datainput.readFloat();
+				this.impactY = datainput.readFloat();
+				this.impactZ = datainput.readFloat();
+				break;
+			case combatEvtID_Consume:
+				break;
+			case combatEvtID_UpdatePower:
+				this.impactX = datainput.readFloat();
+				break;
 		}
 	}
 	
@@ -117,6 +134,18 @@ public class ZPCombatEvent {
 				break;
 			case combatEvtID_StopCruise:
 				break;
+			case combatEvtID_Blink:
+				dataoutput.writeByte(this.direction);
+				dataoutput.writeByte(this.pitch);
+				dataoutput.writeFloat(this.impactX);
+				dataoutput.writeFloat(this.impactY);
+				dataoutput.writeFloat(this.impactZ);
+				break;
+			case combatEvtID_Consume:
+				break;
+			case combatEvtID_UpdatePower:
+				dataoutput.writeFloat(this.impactX);
+				break;
 		}
 	}
 	
@@ -143,6 +172,12 @@ public class ZPCombatEvent {
 				return 2;
 			case combatEvtID_StopCruise:
 				return 0;
+			case combatEvtID_Blink:
+				return 14;
+			case combatEvtID_Consume:
+				return 0;
+			case combatEvtID_UpdatePower:
+				return 4;
 		}
 		
 		return 0;
@@ -195,6 +230,16 @@ public class ZPCombatEvent {
 			case combatEvtID_Liftoff:
 				if (side.isClient())
 					targetPlayer.onGround = false;
+				
+				if (side.isServer())
+				{
+					float newAmount = targetPlayer.getAbsorptionAmount() - 3.5f;
+					
+					if (newAmount < 0)
+						targetPlayer.removePotionEffect(Potion.field_76444_x.id);
+					else
+						targetPlayer.setAbsorptionAmount(newAmount);
+				}
 				break;
 			case combatEvtID_LowJump:
 				targetPlayer.motionY += 0.55d;
@@ -250,6 +295,20 @@ public class ZPCombatEvent {
 					}
 				}
 				
+				if (side.isServer())
+				{
+					float newAmount = targetPlayer.getAbsorptionAmount() - 0.1f;
+					
+					if (!entityState.isCruising)
+						newAmount -= 2.5f;
+					
+					if (newAmount < 0)
+						targetPlayer.removePotionEffect(Potion.field_76444_x.id);
+					else
+						targetPlayer.setAbsorptionAmount(newAmount);
+				}
+				
+				
 				double cosPitch = Math.cos(rotPitch * Math.PI / 180.0d);
 				entityState.isCruising = true;
 				entityState.dirX = cosPitch * -Math.sin(rotYaw * Math.PI / 180.0d);
@@ -265,6 +324,55 @@ public class ZPCombatEvent {
 				{
 					Minecraft.getMinecraft().gameSettings.smoothCamera = false;
 				}
+				break;
+			case combatEvtID_Blink:
+				if (side.isClient())
+				{
+					targetPlayer.setPosition(this.impactX, this.impactY, this.impactZ);
+					targetPlayer.rotationYaw = (float)getRotationFromDirection(this.direction);
+					targetPlayer.rotationPitch = (float)getRotationFromPitch(this.pitch);
+				}
+				else
+				{
+					((EntityPlayerMP)targetPlayer).playerNetServerHandler.setPlayerLocation(this.impactX, this.impactY, this.impactZ, (float)getRotationFromDirection(this.direction), (float)getRotationFromPitch(this.pitch));
+					
+					float newAmount = targetPlayer.getAbsorptionAmount() - 5.0f;
+					
+					if (newAmount < 0)
+						targetPlayer.removePotionEffect(Potion.field_76444_x.id);
+					else
+						targetPlayer.setAbsorptionAmount(newAmount);
+				}
+				break;
+			case combatEvtID_Consume:
+				if (side.isServer())
+				{
+					ItemStack currentItem = targetPlayer.getCurrentEquippedItem();
+					
+					if (currentItem != null && (/*currentItem.getItem() == Item.coal || */currentItem.getItem() == Item.diamond))
+					{
+						int newAmount = (int)Math.ceil(targetPlayer.getAbsorptionAmount() / 4.0d) - 1;
+						
+						//if (currentItem.getItem() == Item.coal)
+						//	newAmount += 1;
+						if (currentItem.getItem() == Item.diamond)
+							newAmount += 15;
+						
+						newAmount = Math.min(19, newAmount);
+						
+						currentItem.stackSize--; //.splitStack(1);
+						
+						if (currentItem.stackSize <= 0)
+		                {
+							 targetPlayer.inventory.mainInventory[targetPlayer.inventory.currentItem] = null;
+		                }
+						
+						targetPlayer.removePotionEffect(Potion.field_76444_x.id);
+						targetPlayer.addPotionEffect(new PotionEffect(Potion.field_76444_x.id, 24000, newAmount));
+					}
+				}
+				break;
+			case combatEvtID_UpdatePower:
 				break;
 		}
 	}
@@ -334,14 +442,14 @@ public class ZPCombatEvent {
 	
 	public static void updateCruising(EntityPlayer targetPlayer, ZPCEntityState entityState)
 	{
-		double mag = 1.2d;
+		double mag = 0.9d;
 		double curVelInDir = targetPlayer.motionX * entityState.dirX + targetPlayer.motionY * entityState.dirY + targetPlayer.motionZ * entityState.dirZ;
 		
 		double dVel = mag - curVelInDir;
 		if (dVel > 0)
 		{
 			targetPlayer.motionX = entityState.dirX * mag;
-			targetPlayer.motionY = entityState.dirY * mag;// + 0.5d;
+			targetPlayer.motionY = entityState.dirY * mag + 0.1d;
 			targetPlayer.motionZ = entityState.dirZ * mag;
 			//TODO: doCruising
 			//Accelerate in direction

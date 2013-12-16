@@ -11,6 +11,8 @@ import net.minecraft.client.entity.EntityClientPlayerMP;
 import net.minecraft.client.multiplayer.NetClientHandler;
 import net.minecraft.client.settings.GameSettings;
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import cpw.mods.fml.client.registry.KeyBindingRegistry.KeyHandler;
 import cpw.mods.fml.common.TickType;
 
@@ -47,14 +49,10 @@ public class ZPCombatKeyHandler extends KeyHandler {
 		{
 			EntityClientPlayerMP thisPlayer = Minecraft.getMinecraft().thePlayer;
 			
-			if (thisPlayer.capabilities.allowFlying)
+			if (kb == ZPCombat.keyBindConsume && !tickEnd)
 			{
-				if (kb.keyCode == mcGameSettings.keyBindJump.keyCode)
-					mcGameSettings.keyBindJump.pressed = kb.pressed;
-			}
-			else
-			{
-				if (kb == ZPCombat.keyBindJumpHijack)
+				ItemStack currentItem = thisPlayer.getCurrentEquippedItem();
+				if (currentItem != null && (currentItem.getItem() == Item.coal || currentItem.getItem() == Item.diamond))
 				{
 					synchronized(ZPCombat.combatEventsClient)
 					{
@@ -67,19 +65,43 @@ public class ZPCombatKeyHandler extends KeyHandler {
 							ZPCombat.combatEventsClient.put(thisPlayer, eventList);
 						}
 						
-						if (ZPCombat.thisPlayerWasSprinting)
+						ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Consume);
+						eventList.add(newEvent);
+						thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+					}
+				}
+			}
+			
+			if (thisPlayer.capabilities.allowFlying || thisPlayer.getAbsorptionAmount() == 0.0f)
+			{
+				if (kb.keyCode == mcGameSettings.keyBindJump.keyCode)
+					mcGameSettings.keyBindJump.pressed = kb.pressed;
+			}
+			else
+			{
+				if (kb == ZPCombat.keyBindJumpHijack && !kb.pressed)
+				{
+					synchronized(ZPCombat.combatEventsClient)
+					{
+						List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
+						
+						if (eventList == null)
 						{
-							if (thisPlayer.onGround)
+							eventList = new ArrayList<ZPCombatEvent>();
+							
+							ZPCombat.combatEventsClient.put(thisPlayer, eventList);
+						}
+						
+						if (thisPlayer.onGround)
+						{
+							if (ZPCombat.thisPlayerWasSprinting)
 							{
 								ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpFront);
 								newEvent.direction = ZPCombatEvent.getDirectionFromRotation(thisPlayer.rotationYaw);
 								eventList.add(newEvent);
 								thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
 							}
-						}
-						else
-						{
-							if (thisPlayer.onGround)
+							else
 							{
 								if (ZPCombat.keyBindSneakHijack.pressed)
 								{
@@ -95,28 +117,35 @@ public class ZPCombatKeyHandler extends KeyHandler {
 								}
 							}
 						}
+						else
+						{
+							ZPClientTickHandler.doBlink = true;
+						}
 					}
 				}
 				else if (kb == ZPCombat.keyBindSneakHijack)
 				{
-					synchronized(ZPCombat.combatEventsClient)
+					if (thisPlayer.getAbsorptionAmount() != 0.0f)
 					{
-						List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
-						
-						if (eventList == null)
+						synchronized(ZPCombat.combatEventsClient)
 						{
-							eventList = new ArrayList<ZPCombatEvent>();
+							List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
 							
-							ZPCombat.combatEventsClient.put(thisPlayer, eventList);
-						}
-						
-						if (!thisPlayer.onGround)
-						{
-							ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Cruise);
-							newEvent.direction = ZPCombatEvent.getDirectionFromRotation(thisPlayer.rotationYaw);
-							newEvent.pitch = ZPCombatEvent.getPitchFromRotation(thisPlayer.rotationPitch);
-							eventList.add(newEvent);
-							thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+							if (eventList == null)
+							{
+								eventList = new ArrayList<ZPCombatEvent>();
+								
+								ZPCombat.combatEventsClient.put(thisPlayer, eventList);
+							}
+							
+							if (!thisPlayer.onGround)
+							{
+								ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Cruise);
+								newEvent.direction = ZPCombatEvent.getDirectionFromRotation(thisPlayer.rotationYaw);
+								newEvent.pitch = ZPCombatEvent.getPitchFromRotation(thisPlayer.rotationPitch);
+								eventList.add(newEvent);
+								thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+							}
 						}
 					}
 				}
@@ -165,7 +194,7 @@ public class ZPCombatKeyHandler extends KeyHandler {
 			}
 		}
 		
-		if (thisPlayer.capabilities.allowFlying)
+		if (thisPlayer.capabilities.allowFlying || thisPlayer.getAbsorptionAmount() == 0.0f)
 		{
 			if (kb.keyCode == mcGameSettings.keyBindJump.keyCode)
 				mcGameSettings.keyBindJump.pressed = kb.pressed;

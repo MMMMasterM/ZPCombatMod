@@ -11,7 +11,12 @@ import java.util.Set;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
+import net.minecraft.client.model.ModelBase;
+import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.renderer.EntityRenderer;
+import net.minecraft.client.renderer.entity.RenderManager;
+import net.minecraft.client.renderer.entity.RenderPlayer;
+import net.minecraft.client.renderer.entity.RendererLivingEntity;
 import net.minecraft.client.settings.GameSettings;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.player.EntityPlayer;
@@ -32,7 +37,7 @@ import cpw.mods.fml.common.network.NetworkMod;
 import cpw.mods.fml.common.registry.TickRegistry;
 import cpw.mods.fml.relauncher.Side;
 
-@Mod(modid="ZPCombat", name="ZPCombat", version="0.1")
+@Mod(modid="ZPCombat", name="ZPCombat", version="1.0")
 @NetworkMod(clientSideRequired=true, serverSideRequired=true, channels={"zpcSync"}, packetHandler=ZPCSyncPacketHandler.class)
 public class ZPCombat {
 	
@@ -43,12 +48,56 @@ public class ZPCombat {
 	public static KeyBinding keyBindJumpHijack;
 	public static KeyBinding keyBindSneakHijack;
 	
+	public static KeyBinding keyBindConsume;
+	
 	@Instance("ZPCombat")
 	public static ZPCombat instance;
 	
 	@EventHandler
 	public void preInit(FMLPreInitializationEvent event)
 	{
+		//Stomp renderPlayer model instance:
+		if (event.getSide().isClient())
+		{
+			int i = 0;
+			for (Field curField : RendererLivingEntity.class.getDeclaredFields())
+			{
+				if (curField.getType() == ModelBase.class)
+				{
+					if (i++ == 0)
+					{
+						mainModelField = curField;
+						curField.setAccessible(true);
+					}
+				}
+			}
+			
+			i = 0;
+			for (Field curField : RenderPlayer.class.getDeclaredFields())
+			{
+				if (curField.getType() == ModelBiped.class)
+				{
+					if (i++ == 0)
+					{
+						modelBipedMainField = curField;
+						curField.setAccessible(true);
+					}
+				}
+			}
+			
+			RenderPlayer playerRenderer = (RenderPlayer)RenderManager.instance.getEntityClassRenderObject(EntityPlayer.class);
+			ZPCPlayerModel newModel = new ZPCPlayerModel(0.0F);
+			
+			try {
+				mainModelField.set((RendererLivingEntity)playerRenderer, (ModelBase)newModel);
+				modelBipedMainField.set(playerRenderer, (ModelBiped)newModel);
+			} catch (IllegalArgumentException e) {
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
+				e.printStackTrace();
+			}
+		}
+		
 		MinecraftForge.EVENT_BUS.register(new EventHookContainer());
 	}
 	
@@ -70,9 +119,10 @@ public class ZPCombat {
 		keyBindLeftHijack = new KeyBinding("LeftHijack", mcGameSettings.keyBindLeft.keyCode);
 		keyBindRightHijack = new KeyBinding("RightHijack", mcGameSettings.keyBindRight.keyCode);
 		keyBindSneakHijack = new KeyBinding("SneakHijack", mcGameSettings.keyBindSneak.keyCode);
+		keyBindConsume = new KeyBinding("Consume", Keyboard.KEY_C);
 		
 		KeyBinding[] keys = {keyBindForwardHijack, keyBindBackHijack, 
-				keyBindLeftHijack, keyBindRightHijack, keyBindJumpHijack, keyBindSneakHijack};
+				keyBindLeftHijack, keyBindRightHijack, keyBindJumpHijack, keyBindSneakHijack, keyBindConsume};
 		
 		boolean[] repeats = new boolean[keys.length];
 		
@@ -183,4 +233,8 @@ public class ZPCombat {
 	public static Field mouseFilterYAxisField;
 	
 	public static Field camRollField; //15th float
+	
+	
+	public static Field mainModelField;
+	public static Field modelBipedMainField;
 }

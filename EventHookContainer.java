@@ -8,6 +8,7 @@ import net.minecraft.client.entity.EntityClientPlayerMP;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.world.WorldServer;
+import net.minecraftforge.client.event.RenderPlayerEvent;
 import net.minecraftforge.event.ForgeSubscribe;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 
@@ -59,6 +60,16 @@ public class EventHookContainer {
 			{
 				event.setCanceled(true);
 			}
+		}
+	}
+	
+	@ForgeSubscribe
+	public void onRenderPlayer(RenderPlayerEvent.Pre event)
+	{
+		ZPCEntityState curEntityState = (ZPCEntityState)event.entityPlayer.getExtendedProperties("zpcState");
+		if (curEntityState != null && curEntityState.isCruising)
+		{
+			event.entityPlayer.renderYawOffset = event.entityPlayer.rotationYaw;
 		}
 	}
 }

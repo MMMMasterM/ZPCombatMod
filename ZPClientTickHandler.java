@@ -10,7 +10,12 @@ import net.minecraft.client.entity.EntityClientPlayerMP;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
 import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.MovingObjectPosition;
+import net.minecraft.util.Vec3;
 import cpw.mods.fml.common.ITickHandler;
 import cpw.mods.fml.common.TickType;
 import cpw.mods.fml.common.network.PacketDispatcher;
@@ -21,6 +26,8 @@ public class ZPClientTickHandler implements ITickHandler {
 	public static boolean thisPlayerWasOnGround = true;
 	public static double thisPlayerOldY;
 	
+	public static boolean doBlink = false;
+	
 	@Override
 	public void tickStart(EnumSet<TickType> type, Object... tickData) {
 		// onPlayerPreTick
@@ -29,7 +36,91 @@ public class ZPClientTickHandler implements ITickHandler {
 		
 		synchronized(ZPCombat.combatEventsClient)
 		{
+			
 			List<ZPCombatEvent> curCEventList = ZPCombat.combatEventsClient.get(curPlayer);
+			
+			if (doBlink)
+			{
+				if (curCEventList == null)
+				{
+					curCEventList = new ArrayList<ZPCombatEvent>();
+					
+					ZPCombat.combatEventsClient.put(curPlayer, curCEventList);
+				}
+				
+				doBlink = false;
+				
+				//Calculate destination:
+				double cosPitch = Math.cos(curPlayer.rotationPitch * Math.PI / 180.0d);
+				double blinkDirX = cosPitch * -Math.sin(curPlayer.rotationYaw * Math.PI / 180.0d);
+				double blinkDirY = -Math.sin(curPlayer.rotationPitch * Math.PI / 180.0d);
+				double blinkDirZ = cosPitch * Math.cos(curPlayer.rotationYaw * Math.PI / 180.0d);
+				
+				double blinkReach = 20.0d;
+				Vec3 blinkDirection = curPlayer.worldObj.getWorldVec3Pool().getVecFromPool(blinkDirX, blinkDirY, blinkDirZ);//unit length
+				
+				Vec3 playerEyePos = curPlayer.worldObj.getWorldVec3Pool().getVecFromPool(curPlayer.posX, curPlayer.posY, curPlayer.posZ);//absolute coords
+				Vec3 playerDestPos = playerEyePos.addVector(blinkDirection.xCoord * blinkReach, blinkDirection.yCoord * blinkReach, blinkDirection.zCoord * blinkReach);//absolute coords
+				
+				//call addVector(0, 0, 0) to duplicate it because clip() changes its content otherwise
+				MovingObjectPosition raytraceResult = curPlayer.worldObj.clip(playerEyePos.addVector(0, 0, 0), playerDestPos, false);
+				if (raytraceResult != null)
+				{
+					playerDestPos = blinkDirection.subtract(raytraceResult.hitVec);
+				}
+				
+				Vec3 blinkVec = playerEyePos.subtract(playerDestPos);//blink range length
+				
+				Entity hitEntity = null;
+	            List list = curPlayer.worldObj.getEntitiesWithinAABBExcludingEntity(curPlayer, curPlayer.boundingBox.addCoord(blinkVec.xCoord, blinkVec.yCoord, blinkVec.zCoord).expand(1.0D, 1.0D, 1.0D));
+	            double d0 = 0.0D;
+				
+				for (int i = 0; i < list.size(); ++i)
+	            {
+	                Entity curEntity = (Entity)list.get(i);
+	                
+	                if (!(curEntity instanceof EntityLivingBase))
+	                	continue;
+	                
+                    raytraceResult = curEntity.boundingBox.calculateIntercept(playerEyePos, playerDestPos);
+
+                    if (raytraceResult != null)
+                    {
+                        double d1 = playerEyePos.distanceTo(raytraceResult.hitVec);
+
+                        if (d1 < d0 || d0 == 0.0D)
+                        {
+                        	hitEntity = curEntity;
+                            d0 = d1;
+                            playerDestPos = blinkDirection.subtract(raytraceResult.hitVec);
+                        }
+                    }
+	            }
+				
+				double targetYaw = curPlayer.rotationYaw;
+				double targetPitch = curPlayer.rotationPitch;
+				
+				//Teleport behind target and turn around
+				if (d0 != 0.0d)
+				{
+					playerDestPos = playerDestPos.addVector(blinkDirection.xCoord * 2.0d, blinkDirection.yCoord * 2.0d, blinkDirection.zCoord * 2.0d);
+					targetYaw += 180.0f;
+					if (targetYaw > 180.0f)
+						targetYaw -= 360.0f;
+					
+					targetPitch = 0;//-targetPitch / 2.0f;
+				}
+				
+				//Add+send event:
+				ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Blink);
+				newEvent.direction = ZPCombatEvent.getDirectionFromRotation(targetYaw);
+				newEvent.pitch = ZPCombatEvent.getPitchFromRotation(targetPitch);
+				newEvent.impactX = (float)playerDestPos.xCoord;
+				newEvent.impactY = (float)playerDestPos.yCoord;// - curPlayer.height / 2.0f;
+				newEvent.impactZ = (float)playerDestPos.zCoord;
+				curCEventList.add(newEvent);
+				((EntityClientPlayerMP)curPlayer).sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
+			}
 			
 			if (curCEventList != null)
 			{
