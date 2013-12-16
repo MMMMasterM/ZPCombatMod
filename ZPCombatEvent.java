@@ -8,11 +8,14 @@ import java.util.List;
 import java.util.Map;
 
 import cpw.mods.fml.relauncher.Side;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.MathHelper;
+import net.minecraft.util.MouseFilter;
 
 public class ZPCombatEvent {
 	
@@ -214,6 +217,39 @@ public class ZPCombatEvent {
 					targetPlayer.registerExtendedProperties("zpcState", entityState);
 				}
 				
+				if (side.isClient() && targetPlayer == Minecraft.getMinecraft().thePlayer)
+				{
+					Minecraft.getMinecraft().gameSettings.smoothCamera = true;
+					
+					EntityRenderer entityRenderer = Minecraft.getMinecraft().entityRenderer;
+					
+					//Remove momentum from smooth camera:
+					try {
+						MouseFilter filterX = (MouseFilter)ZPCombat.mouseFilterXAxisField.get(entityRenderer);
+						MouseFilter filterY = (MouseFilter)ZPCombat.mouseFilterYAxisField.get(entityRenderer);
+						
+						if (entityState.isCruising == false)
+						{
+							ZPCombat.mouseFilterField1.setFloat(filterX, 0.0f);
+							ZPCombat.mouseFilterField2.setFloat(filterX, 0.0f);
+							ZPCombat.mouseFilterField3.setFloat(filterX, 0.0f);
+							
+							ZPCombat.mouseFilterField1.setFloat(filterY, 0.0f);
+							ZPCombat.mouseFilterField2.setFloat(filterY, 0.0f);
+							ZPCombat.mouseFilterField3.setFloat(filterY, 0.0f);
+						}
+						
+						float newRoll = ZPCombat.mouseFilterField3.getFloat(filterX);
+						
+						ZPCombat.camRollField.setFloat(entityRenderer, newRoll);//10.1f);
+						
+					} catch (IllegalArgumentException e) {
+						e.printStackTrace();
+					} catch (IllegalAccessException e) {
+						e.printStackTrace();
+					}
+				}
+				
 				double cosPitch = Math.cos(rotPitch * Math.PI / 180.0d);
 				entityState.isCruising = true;
 				entityState.dirX = cosPitch * -Math.sin(rotYaw * Math.PI / 180.0d);
@@ -224,6 +260,11 @@ public class ZPCombatEvent {
 				ZPCEntityState curEntityState = (ZPCEntityState)targetPlayer.getExtendedProperties("zpcState");
 				if (curEntityState != null)
 					curEntityState.isCruising = false;
+				
+				if (side.isClient() && targetPlayer == Minecraft.getMinecraft().thePlayer)
+				{
+					Minecraft.getMinecraft().gameSettings.smoothCamera = false;
+				}
 				break;
 		}
 	}
@@ -300,7 +341,7 @@ public class ZPCombatEvent {
 		if (dVel > 0)
 		{
 			targetPlayer.motionX = entityState.dirX * mag;
-			targetPlayer.motionY = entityState.dirY * mag + 0.5d;
+			targetPlayer.motionY = entityState.dirY * mag;// + 0.5d;
 			targetPlayer.motionZ = entityState.dirZ * mag;
 			//TODO: doCruising
 			//Accelerate in direction

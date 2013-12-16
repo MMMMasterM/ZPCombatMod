@@ -8,6 +8,7 @@ import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityClientPlayerMP;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
+import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.player.EntityPlayer;
 import cpw.mods.fml.common.ITickHandler;
@@ -135,28 +136,6 @@ public class ZPClientTickHandler implements ITickHandler {
 				//synchronized(ZPCombat.combatEventsClient)
 				{
 					EntityClientPlayerMP thisPlayer = (EntityClientPlayerMP)curPlayer;
-					/*List<ZPCombatEvent> eventList = ZPCombat.combatEventsClient.get(thisPlayer);
-					
-					if (eventList == null)
-					{
-						eventList = new ArrayList<ZPCombatEvent>();
-						
-						ZPCombat.combatEventsClient.put(thisPlayer, eventList);
-					}
-					
-					if (ZPCombat.thisPlayerWasSprinting)
-					{
-						ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpFront);
-						newEvent.direction = ZPCombatEvent.getDirectionFromRotation(thisPlayer.rotationYaw);
-						eventList.add(newEvent);
-						thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
-					}
-					else
-					{
-						ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_JumpUp);
-						eventList.add(newEvent);
-						thisPlayer.sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));
-					}*/
 					
 					ZPCombatEvent newEvent = new ZPCombatEvent(ZPCombatEvent.combatEvtID_Impact);
 					newEvent.impactX = (float)thisPlayer.posX;
@@ -183,6 +162,29 @@ public class ZPClientTickHandler implements ITickHandler {
 				newEvent.impactY = (float)curPlayer.boundingBox.minY;
 				((EntityClientPlayerMP)curPlayer).sendQueue.addToSendQueue(new ZPCombatMoveAsyncPacketCtoS(newEvent));*/
 			//}
+			
+			EntityRenderer entityRenderer = Minecraft.getMinecraft().entityRenderer;
+			
+			ZPCEntityState curEntityState = (ZPCEntityState)curPlayer.getExtendedProperties("zpcState");
+			if (curEntityState != null && !curEntityState.isCruising)
+			{
+				try {
+					float camRoll = ZPCombat.camRollField.getFloat(entityRenderer);
+					
+					if (camRoll != 0.0f)
+					{
+						if (Math.abs(camRoll) < 5.0f)
+							ZPCombat.camRollField.setFloat(entityRenderer, 0.0f);
+						else
+							ZPCombat.camRollField.setFloat(entityRenderer, camRoll * 0.5f);
+					}
+					
+				} catch (IllegalArgumentException e) {
+					e.printStackTrace();
+				} catch (IllegalAccessException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 		else
 		{

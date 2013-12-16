@@ -11,10 +11,12 @@ import java.util.Set;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
+import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.client.settings.GameSettings;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.packet.Packet;
+import net.minecraft.util.MouseFilter;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.MinecraftForge;
 
@@ -105,6 +107,54 @@ public class ZPCombat {
 				}
 			}
 		}
+		
+		i = 0;
+		for (Field curField : MouseFilter.class.getDeclaredFields())
+		{
+			switch (i++)
+			{
+				case 0:
+					mouseFilterField1 = curField;
+					curField.setAccessible(true);
+					break;
+				case 1:
+					mouseFilterField2 = curField;
+					curField.setAccessible(true);
+					break;
+				case 2:
+					mouseFilterField3 = curField;
+					curField.setAccessible(true);
+					break;
+			}
+		}
+		
+		i = 0;
+		int j = 0;
+		for (Field curField : EntityRenderer.class.getDeclaredFields())
+		{
+			if (curField.getType() == MouseFilter.class)
+			{
+				switch (i++)
+				{
+					case 0:
+						mouseFilterXAxisField = curField;
+						curField.setAccessible(true);
+						break;
+					case 1:
+						mouseFilterYAxisField = curField;
+						curField.setAccessible(true);
+						break;
+				}
+			}
+			else if (curField.getType() == float.class)
+			{
+				if (++j == 15)
+				{
+					camRollField = curField;
+					curField.setAccessible(true);
+				}
+			}
+		}
 	}
 	
 	//In order to make it work with the integrated server we need to separate this -_-
@@ -124,4 +174,13 @@ public class ZPCombat {
 	public static Field otherPlayerMPXField;
 	public static Field otherPlayerMPYField;
 	public static Field otherPlayerMPZField;
+	
+	public static Field mouseFilterField1;
+	public static Field mouseFilterField2;
+	public static Field mouseFilterField3;
+	
+	public static Field mouseFilterXAxisField;
+	public static Field mouseFilterYAxisField;
+	
+	public static Field camRollField; //15th float
 }
